@@ -19,7 +19,18 @@
 // Driver for Arduino Mega to connect to Facit 4070 paper tape punch.
 //
 
+#include "font5x7.c"
 
+//#define DEBUG 1
+#if defined(ARDUINO_AVR_MEGA2560)
+  #define BOARD "Mega"
+#elif defined(ARDUINO_AVR_MEGA)
+  #define BOARD "Mega"
+#else
+  #define BOARD "Uno"
+#endif
+
+String version_text = " Version 1.0   19th April 2018   ASCII and Human readable ";
 String device_greeting = "+++ Welcome to the Facit 4070 tape punch +++\r\nEnter ? for help.";
 
 String top_menu_title = "Punch Main Menu";
@@ -41,7 +52,9 @@ static int PRpin = 12;
 void setup() {
 
   Serial.begin(115200);
-//  DDRK = 0xFF;
+  #if defined(ARDUINO_AVR_MEGA2560) || defined(ARDUINO_AVR_MEGA) 
+    DDRK = 0xFF;
+  #endif
   pinMode(feedhole,OUTPUT); 
   pinMode(SDpin,OUTPUT);
   pinMode(PIpin,OUTPUT);
@@ -56,8 +69,12 @@ void loop()
   if (Serial.available() > 0) 
   {
     char incomingByte = Serial.read(); // read the incoming byte:
+#if defined(DEBUG)
     Serial.print(" I received:");
     Serial.println(incomingByte);
+#else
+//    Serial.println(" ");
+#endif
     clearCRLF();
     switch (incomingByte) {
       case '?':
@@ -75,7 +92,18 @@ void loop()
       case 'a':
           punchMessage();
           break;
-          
+      case 'p':
+          punchHumanMessage();
+          break;
+      case 'v':
+          displayVersion();
+          break;
+      case 's':
+          moveTape(10,false);
+          break;
+      case 'f':
+          moveTape(10,true);
+          break;
       
     }
    }
@@ -83,11 +111,16 @@ void loop()
 
 void clearCRLF() {
   char ch;
+  delay(10);
   if (Serial.available() >0 )
   {
     ch=Serial.peek();
     if ((ch == '\n') || (ch == '\r')) {
-//      Serial.println(F("dumping char"));
+#if defined(DEBUG)
+      Serial.println(F("dumping char"));
+#else
+//      Serial.print(F("."));
+#endif
       Serial.flush();
       Serial.read();
       clearCRLF();
@@ -123,6 +156,12 @@ void clearMessage() {
   message="";
 }
 
+void displayVersion() {
+  Serial.println(F("Version information:"));
+  Serial.println(version_text);
+  Serial.print(F("Compiled for "));
+  Serial.println(BOARD);
+}
 
 
 
@@ -134,20 +173,55 @@ void punchMessage() {
   {
     ch = message.charAt(i);
     punchChar(ch);
+  } 
+}
+
+void punchHumanMessage() {
+  char ch;
+  for (int i = 0; i<message.length() ; i++) 
+  {
+    ch = message.charAt(i);
+    punchHumanChar(ch);
+  } 
+}
+
+void punchHumanChar(char ch) {
+  unsigned char c;
+  for (int i=0; i<5; i++) 
+  {
+    c=pgm_read_byte_near(&font[ch*5+i]);
+    punchChar(c);
+#if defined(DEBUG)
+    Serial.print(ch*5+i);
+    Serial.print(" ");
+    Serial.print(c,HEX);
+    Serial.print(" - ");
+#endif
   }
-  
+#if defined(DEBUG)
+  Serial.println();
+#endif
+}
+
+void moveTape(int num, boolean feedHole) 
+{
+  for (int i=0; i<num; i++ )
+  {
+    punchChar(0,feedHole);
+  }
 }
 
 void menuInfo() {
   Serial.println(F("Facit 4070 printer arduino interface"));
   Serial.println(F("===================================="));
   Serial.println(F("? - show this information"));
+  Serial.println(F("v - show version information"));
   Serial.println(F("d - display message"));
   Serial.println(F("m - enter message"));
   Serial.println(F("c - clear message"));
   Serial.println(F("p - punch message human readable"));
   Serial.println(F("a - punch message in ascii"));
-  Serial.println(F("e - punch message in ebcdic"));
+  Serial.println(F("e - punch message in ebcdic*"));
   Serial.println(F("s - advance tape 10 spaces"));
   Serial.println(F("f - advance tape 10 spaces and punch feed holes"));
   Serial.println();
@@ -157,11 +231,25 @@ void menuInfo() {
 
 /* ***************** Facit 4070 interface ********************* */
 
-
-void punchChar(byte ch) 
+void punchChar(byte ch)
 {
-//  PORTK = ch;
-  digitalWrite(feedhole,HIGH);
+  punchChar(ch,true);
+} 
+
+
+
+
+void punchChar(byte ch, boolean feed) 
+{
+  #if defined(ARDUINO_AVR_MEGA2560) || defined(ARDUINO_AVR_MEGA) 
+    PORTK = ch;
+  #endif
+  if (feed)
+  {
+    digitalWrite(feedhole,HIGH);
+  } else {
+    digitalWrite(feedhole,LOW);
+  }
   digitalWrite(SDpin, LOW);
   delay(10);
 //  while (digitalRead(PRpin))

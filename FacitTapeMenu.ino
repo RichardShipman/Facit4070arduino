@@ -20,8 +20,11 @@
 //
 
 #include "font5x7.c"
+#include "EBCDIC.h"
 
 //#define DEBUG 1
+
+
 #if defined(ARDUINO_AVR_MEGA2560)
   #define BOARD "Mega"
 #elif defined(ARDUINO_AVR_MEGA)
@@ -30,7 +33,7 @@
   #define BOARD "Uno"
 #endif
 
-String version_text = " Version 1.0   19th April 2018   ASCII and Human readable ";
+String version_text = " Version 1.1   19th April 2018   ASCII, EBCDIC and Human readable ";
 String device_greeting = "+++ Welcome to the Facit 4070 tape punch +++\r\nEnter ? for help.";
 
 String top_menu_title = "Punch Main Menu";
@@ -91,6 +94,9 @@ void loop()
           break;
       case 'a':
           punchMessage();
+          break;
+      case 'e':
+          punchEbcdicMessage();
           break;
       case 'p':
           punchHumanMessage();
@@ -176,6 +182,19 @@ void punchMessage() {
   } 
 }
 
+
+void punchEbcdicMessage() {
+  char ch;
+  char c;
+  for (int i = 0; i<message.length() ; i++) 
+  {
+    ch = message.charAt(i);
+    c=pgm_read_byte_near(&ebcdic[ch]);
+    punchChar(c);
+  } 
+}
+
+
 void punchHumanMessage() {
   char ch;
   for (int i = 0; i<message.length() ; i++) 
@@ -221,7 +240,7 @@ void menuInfo() {
   Serial.println(F("c - clear message"));
   Serial.println(F("p - punch message human readable"));
   Serial.println(F("a - punch message in ascii"));
-  Serial.println(F("e - punch message in ebcdic*"));
+  Serial.println(F("e - punch message in ebcdic"));
   Serial.println(F("s - advance tape 10 spaces"));
   Serial.println(F("f - advance tape 10 spaces and punch feed holes"));
   Serial.println();
@@ -243,6 +262,9 @@ void punchChar(byte ch, boolean feed)
 {
   #if defined(ARDUINO_AVR_MEGA2560) || defined(ARDUINO_AVR_MEGA) 
     PORTK = ch;
+  #endif
+  #if defined(DEBUG)
+     Serial.println(ch, HEX);
   #endif
   if (feed)
   {

@@ -39,6 +39,7 @@
 //String version_text = " Version 1.1   19th April 2018   ASCII, EBCDIC and Human readable ";
 //String version_text = " Version 1.2   20th April 2018   Now with parity, where appropriate.";
 String version_text = " Version 1.3   20th April 2018   EIA N/C code added.\r\n http://faculty.etsu.edu/hemphill/entc3710/nc-prog/nc-04-01.htm";
+String version_text = " Version 1.3.1   20th April 2018   Added a single space between letters in human readable.";
 String device_greeting = "+++ Welcome to the Facit 4070 tape punch +++\r\nEnter ? for help.";
 
 String top_menu_title = "Punch Main Menu";
@@ -256,6 +257,7 @@ void punchHumanMessage() {
   {
     ch = message.charAt(i);
     punchHumanChar(ch);
+    moveTape(1,true);
   } 
   parityOn=oldParity;
 }

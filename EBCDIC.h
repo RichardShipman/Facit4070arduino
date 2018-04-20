@@ -1,4 +1,4 @@
-// Slightly updated 5x7 font for ISO8859-2
+// ASCII to Ebcdic conversion lookup table
 
 #ifndef EBCDIC_H
 #define EBCDIC_H

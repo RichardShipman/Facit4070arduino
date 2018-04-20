@@ -1,4 +1,4 @@
-// Copyright (C) Richard Shipman 2018
+// Copyright (C) 2018 Richard Shipman 
 // MIT License
 // Permission is hereby granted, free of charge, to any person obtaining a copy of this software 
 // and associated documentation files (the "Software"), to deal in the Software without restriction,
@@ -21,6 +21,7 @@
 
 #include "font5x7.c"
 #include "EBCDIC.h"
+#include "EIA.h"
 #include <util/parity.h>
 
 //#define DEBUG 1
@@ -34,7 +35,10 @@
   #define BOARD "Uno"
 #endif
 
-String version_text = " Version 1.2   20th April 2018   Now with parity, where appropriate.";
+//String version_text = " Version 1.0   19th April 2018   ASCII and Human readable ";
+//String version_text = " Version 1.1   19th April 2018   ASCII, EBCDIC and Human readable ";
+//String version_text = " Version 1.2   20th April 2018   Now with parity, where appropriate.";
+String version_text = " Version 1.3   20th April 2018   EIA N/C code added.\r\n http://faculty.etsu.edu/hemphill/entc3710/nc-prog/nc-04-01.htm";
 String device_greeting = "+++ Welcome to the Facit 4070 tape punch +++\r\nEnter ? for help.";
 
 String top_menu_title = "Punch Main Menu";
@@ -42,6 +46,7 @@ String top_menu_title = "Punch Main Menu";
 String message;
 boolean parityOn=false;
 boolean parityOdd=false;
+byte parityBit=B10000000;
 
 // output punch feed hole
 static int feedhole = 9;
@@ -88,6 +93,9 @@ void loop()
         break;
       case 'a':
           punchMessage();
+          break;
+      case 'b':
+          punchEiaMessage();
           break;
       case 'c':
           clearMessage();
@@ -201,12 +209,26 @@ void displayVersion() {
 
 
 void punchMessage() {
-
   char ch;
+  parityBit=B10000000;
   for (int i = 0; i<message.length() ; i++) 
   {
     ch = message.charAt(i);
     punchChar(ch);
+  } 
+}
+
+
+
+void punchEiaMessage() {
+  char ch;
+  char c;
+  parityBit=B00010000;
+  for (int i = 0; i<message.length() ; i++) 
+  {
+    ch = message.charAt(i);
+    c=pgm_read_byte_near(&eia[ch]);
+    punchChar(c);
   } 
 }
 
@@ -228,11 +250,14 @@ void punchEbcdicMessage() {
 
 void punchHumanMessage() {
   char ch;
+  boolean oldParity=parityOn;
+  parityOn=false;
   for (int i = 0; i<message.length() ; i++) 
   {
     ch = message.charAt(i);
     punchHumanChar(ch);
   } 
+  parityOn=oldParity;
 }
 
 void punchHumanChar(char ch) {
@@ -269,6 +294,7 @@ void menuInfo() {
   Serial.println(F("===================================="));
   Serial.println(F("? - show this information"));
   Serial.println(F("a - punch message in ascii"));
+  Serial.println(F("b - punch message in EIA code"));
   Serial.println(F("c - clear message"));
   Serial.println(F("d - display message"));
   Serial.println(F("e - punch message in ebcdic (no parity)"));
@@ -306,7 +332,7 @@ void punchChar(byte ch, boolean feed)
          Serial.print("adding parity bit ");
          Serial.println(ch);
        #endif
-       ch = ch | B10000000;
+       ch = ch | parityBit;
        #if defined(DEBUG)
          Serial.print("added parity bit  ");
          Serial.println(ch);

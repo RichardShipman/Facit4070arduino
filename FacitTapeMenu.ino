@@ -38,14 +38,15 @@
 //String version_text = " Version 1.0   19th April 2018   ASCII and Human readable ";
 //String version_text = " Version 1.1   19th April 2018   ASCII, EBCDIC and Human readable ";
 //String version_text = " Version 1.2   20th April 2018   Now with parity, where appropriate.";
-String version_text = " Version 1.3   20th April 2018   EIA N/C code added.\r\n http://faculty.etsu.edu/hemphill/entc3710/nc-prog/nc-04-01.htm";
-String version_text = " Version 1.3.1   20th April 2018   Added a single space between letters in human readable.";
+//String version_text = " Version 1.3   20th April 2018   EIA N/C code added.\r\n http://faculty.etsu.edu/hemphill/entc3710/nc-prog/nc-04-01.htm";
+//String version_text = " Version 1.3.1   20th April 2018   Added a single space between letters in human readable. ";
+String version_text = " Version 1.4   11th March 2020   Added convention mode - punches ASCII and human readable. ";
 String device_greeting = "+++ Welcome to the Facit 4070 tape punch +++\r\nEnter ? for help.";
 
 String top_menu_title = "Punch Main Menu";
 
 String message;
-boolean parityOn=false;
+boolean parityOn=true;
 boolean parityOdd=false;
 byte parityBit=B10000000;
 
@@ -77,7 +78,10 @@ void setup() {
 
 void loop() 
 {
-
+//  clearInput();
+  while (Serial.available() == 0) {
+    delay (10);
+  }
   if (Serial.available() > 0) 
   {
     char incomingByte = Serial.read(); // read the incoming byte:
@@ -88,6 +92,7 @@ void loop()
 //    Serial.println(" ");
 #endif
     clearCRLF();
+    
     switch (incomingByte) {
       case '?':
         menuInfo();
@@ -128,6 +133,9 @@ void loop()
       case 'v':
           displayVersion();
           break;
+      case 'z':
+          conventionMode();
+          break;
       
     }
    }
@@ -136,7 +144,7 @@ void loop()
 void clearCRLF() {
   char ch;
   delay(10);
-  if (Serial.available() >0 )
+  if (Serial.available() > 0 )
   {
     ch=Serial.peek();
     if ((ch == '\n') || (ch == '\r')) {
@@ -152,7 +160,21 @@ void clearCRLF() {
   }
 }
 
-
+void clearInput() {
+  
+  char ch;
+  delay(10);
+  while (Serial.available() > 0 )
+  {
+#if defined(DEBUG)
+      Serial.println(F("ignoring char"));
+#else
+//      Serial.print(F("."));
+#endif
+      Serial.flush();
+      Serial.read();
+  }
+}
 
 /* *********** Callbacks ************ */
 
@@ -174,10 +196,13 @@ void displayParity() {
 
 void enterMessage() {
   Serial.println(F("Enter your message:"));
-  char ch;  
+  char ch="";  
   while (ch != '\n') 
   {
-    if (Serial.available()) 
+    while (Serial.available() == 0) {
+      delay(10);
+    }
+    if (Serial.available() > 0) 
     {
       ch=Serial.read();
       message += ch;
@@ -206,7 +231,55 @@ void displayVersion() {
   Serial.println(BOARD);
 }
 
+void conventionMode() {
+  message="";
+//    clearCRLF();
 
+  char ch="";  
+  while (ch != '\n') 
+  {
+    if (Serial.available()) 
+    {
+      ch=Serial.read();
+      message += ch;
+    }
+  }
+  Serial.print(F("Message now is :"));
+  Serial.println(message);
+//    clearCRLF();
+
+  boolean oldParity=parityOn;
+
+  parityOn=true;
+  parityBit=B10000000;
+  for (int i = 0; i<message.length() ; i++) 
+  {
+    ch = message.charAt(i);
+    punchChar(ch);
+  } 
+
+  parityOn=false;
+  for (int i=0; i<5; i++ )
+  {
+    punchChar(0,true);
+  }
+
+  for (int i = 0; i<message.length() ; i++) 
+  {
+    ch = message.charAt(i);
+    punchHumanChar(ch);
+    moveTape(1,true);
+  } 
+
+  for (int i=0; i<25; i++ )
+  {
+    punchChar(0,false);
+  }
+
+  parityOn=oldParity;
+
+  
+}
 
 
 void punchMessage() {
@@ -264,6 +337,11 @@ void punchHumanMessage() {
 
 void punchHumanChar(char ch) {
   unsigned char c;
+
+  if ((ch == '\n') || (ch == '\r')) {
+    return;
+  }
+  
   for (int i=0; i<5; i++) 
   {
     c=pgm_read_byte_near(&font[ch*5+i]);
@@ -307,6 +385,7 @@ void menuInfo() {
   Serial.println(F("p - turn on/off parity"));
   Serial.println(F("s - advance tape 10 spaces"));
   Serial.println(F("v - show version information"));
+  Serial.println(F("z<message> - convention mode"));
   Serial.println();
 }
 
@@ -371,4 +450,3 @@ void punchChar(byte ch, boolean feed)
 //  }
   digitalWrite(PIpin,LOW);
 }
-
